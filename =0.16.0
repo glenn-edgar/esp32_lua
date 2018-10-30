@@ -1,0 +1,7 @@
+Requirement already satisfied: pyserial in c:/msys32/mingw32/lib/python2.7/site-packages (3.4)
+Collecting future
+  Downloading https://files.pythonhosted.org/packages/00/2b/8d082ddfed935f3608cc61140df6dcbf0edea1bc3ab52fb6c29ae3e81e85/future-0.16.0.tar.gz (824kB)
+Installing collected packages: future
+  Running setup.py install for future: started
+    Running setup.py install for future: finished with status 'done'
+Successfully installed future-0.16.0
