@@ -73,12 +73,12 @@ static void lua_task_shell(void *input)
 {
    
   char *file_name;
-  
+  TaskHandle_t current_task_handle;
   
   file_name = (char *)input;
 
-  //lua_State *L = luaL_newstate();  /* create state */
-  lua_State *L = lua_newstate(NULL,NULL); 
+  lua_State *L = luaL_newstate();  /* create state */
+  
   if (L == NULL) 
   {
      abort();
@@ -95,7 +95,10 @@ static void lua_task_shell(void *input)
   **
   */ 
   
-  dofile(L, file_name); 
+  dofile(L, file_name);   
+  // need to free lua memory
+  current_task_handle =  xTaskGetCurrentTaskHandle( );
+  vTaskDelete( current_task_handle);
 }
 
 /*
