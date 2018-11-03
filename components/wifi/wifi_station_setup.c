@@ -46,15 +46,15 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
         esp_wifi_connect();
         break;
     case SYSTEM_EVENT_STA_GOT_IP:
-        //ESP_LOGI(TAG, "got ip:%s",
-        //         ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
+        ESP_LOGI(TAG, "got ip:%s",
+                 ip4addr_ntoa(&event->event_info.got_ip.ip_info.ip));
           wifi_setup_status =true;
         xEventGroupSetBits(wifi_event_group, WIFI_CONNECTED_BIT);
         break;
     case SYSTEM_EVENT_AP_STACONNECTED:
-        //ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
-        //         MAC2STR(event->event_info.sta_connected.mac),
-          //       event->event_info.sta_connected.aid);
+        ESP_LOGI(TAG, "station:"MACSTR" join, AID=%d",
+                 MAC2STR(event->event_info.sta_connected.mac),
+                 event->event_info.sta_connected.aid);
         break;
     case SYSTEM_EVENT_AP_STADISCONNECTED:
         //ESP_LOGI(TAG, "station:"MACSTR"leave, AID=%d",
@@ -111,6 +111,7 @@ void wifi_init_sta(void)
     ret = msgpack_rx_handler_find_string(&ctx, "password", password, &buffer_size );
     if( ret == false)
     {
+       
        goto end;
     }
     
@@ -131,6 +132,7 @@ void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_start() );
     ESP_ERROR_CHECK( tcpip_adapter_set_hostname(TCPIP_ADAPTER_IF_STA, hostname ) );
     printf( "wifi_init_sta finished.\n");
+    printf("*********************hostname %s  password %s  ssid %s \n",hostname,password,ssid);
    
 end:
     free(buffer);

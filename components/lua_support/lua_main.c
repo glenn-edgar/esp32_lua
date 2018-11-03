@@ -14,18 +14,20 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
+#include "mqtt_ctrl.h"
+#include "lua_cmsgpack.h"
 #include "lua_main.h"
 
 #define LUA_TASK_NUMBER 10
-#define LUA_FILE_SIZE   16
+#define LUA_FILE_SIZE   32
 
 
 
 static uint32_t lua_task_number;
-static char      *lua_file_names[LUA_TASK_NUMBER];
-static char      *lua_task_names[LUA_TASK_NUMBER];
+static char      lua_file_names[LUA_TASK_NUMBER][LUA_FILE_SIZE];
+static char      lua_task_names[LUA_TASK_NUMBER][LUA_FILE_SIZE];
 
-static void allocate_string_memory(void);
+//static void allocate_string_memory(void);
 static void lua_task_shell (void *file_name); 
 static bool lua_read_file_configurations(void  );
 static bool find_lua_task_names( cmp_ctx_t     *ctx ,uint32_t data_len, char* data );
@@ -40,7 +42,8 @@ void lua_initialize_main(void)
     
     if( lua_read_file_configurations() == true)
     {
-       allocate_string_memory();
+       task_wait_for_mqtt_connection();
+       //allocate_string_memory();
        for(int i = 0; i< lua_task_number;i++)
        {         
           xTaskCreate(lua_task_shell, lua_task_names[i], 4000, lua_file_names[i], 40, NULL);
@@ -51,7 +54,7 @@ void lua_initialize_main(void)
 
     
 }
-
+#if 0
 static void allocate_string_memory(void)
 {
     char *temp;    
@@ -68,16 +71,19 @@ static void allocate_string_memory(void)
     }
    
 }
-
+#endif
 static void lua_task_shell(void *input) 
 {
    
   char *file_name;
   TaskHandle_t current_task_handle;
+  lua_State *L;
+  
+  
   
   file_name = (char *)input;
-
-  lua_State *L = luaL_newstate();  /* create state */
+  printf("lua file name is %s \n",file_name);
+  L = luaL_newstate();  /* create state */
   
   if (L == NULL) 
   {
@@ -88,6 +94,7 @@ static void lua_task_shell(void *input)
   lua_setfield(L, LUA_REGISTRYINDEX, "LUA_NOENV");
 
   luaL_openlibs(L);  /* open standard libraries */
+  printf("openning message pack extension %d \n",luaopen_cmsgpack(L));
   
   /*
   **
@@ -95,8 +102,11 @@ static void lua_task_shell(void *input)
   **
   */ 
   
+
   dofile(L, file_name);   
-  // need to free lua memory
+  printf("closing lua file \n");
+  
+  lua_close(L);
   current_task_handle =  xTaskGetCurrentTaskHandle( );
   vTaskDelete( current_task_handle);
 }
@@ -195,7 +205,7 @@ static bool lua_read_file_configurations( void )
     
 
     return_value = find_lua_task_names(&ctx, buffer_size, buffer );       
-        
+    //printf("return_value %d ^^^^^^^^^^^^^^^^^^^^^^^\n",return_value);    
     
     free(buffer);
     return return_value;    
@@ -217,9 +227,10 @@ static bool find_lua_task_names( cmp_ctx_t     *ctx ,uint32_t data_len, char* da
     
     if( msgpack_rx_handler_find_array_count(ctx,"LUA_TASKS",&lua_task_number) != true )
     {
+        //printf("lua tasks not found *************************\n");
         return false;
     }
-   
+    //printf("lua task number %d *********************************\n",lua_task_number);
     if(lua_task_number >= LUA_TASK_NUMBER){ return false; }
     
     
@@ -229,7 +240,7 @@ static bool find_lua_task_names( cmp_ctx_t     *ctx ,uint32_t data_len, char* da
        
         return false;
     }
-
+    //printf("lua task chunks found \n");
     for(int i = 0; i< lua_task_number ;i++)
     {
        
@@ -241,7 +252,7 @@ static bool find_lua_task_names( cmp_ctx_t     *ctx ,uint32_t data_len, char* da
        
     }
 
-   
+  
     return true;       
     
     
@@ -259,18 +270,19 @@ static bool process_array_buffer( uint32_t index,uint32_t data_len , char *data)
    msgpack_rx_handler_init(&ctx, data, data_len);
    
    size = LUA_FILE_SIZE;
-   if( msgpack_rx_handler_find_string(&ctx,"LUA_TASK_NAME", lua_file_names[index],&size ) == false)
+   if( msgpack_rx_handler_find_string(&ctx,"LUA_TASK_NAME", lua_task_names[index],&size ) == false)
    {
        return false;
        
    }  
+   printf("found lua file name %s \n",lua_task_names[index]);
    size = LUA_FILE_SIZE; 
-   if( msgpack_rx_handler_find_string(&ctx,"LUA_TASK_FILE", lua_task_names[index],&size )== false)
+   if( msgpack_rx_handler_find_string(&ctx,"LUA_TASK_FILE", lua_file_names[index],&size )== false)
    {
        return false;
        
    }   
-   
+   printf("found lua task name %s \n",lua_file_names[index]);
  
 
     

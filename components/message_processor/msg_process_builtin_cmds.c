@@ -31,6 +31,10 @@ static void add_commands(void);
 static bool format_spiffs( struct cmp_ctx_s *ctx,
                            int *msg_pack_number, 
                            MSG_PACK_ELEMENT **msg_pack); 
+                           
+static bool text_file_write(struct cmp_ctx_s *ctx, 
+                       int *msg_pack_number, 
+                        MSG_PACK_ELEMENT **msg_pack); 
 static bool file_write(struct cmp_ctx_s *ctx, 
                        int *msg_pack_number, 
                         MSG_PACK_ELEMENT **msg_pack);                         
@@ -39,6 +43,10 @@ static bool file_write(struct cmp_ctx_s *ctx,
 static bool file_read( struct cmp_ctx_s *ctx,
                       int *msg_pack_number, 
                        MSG_PACK_ELEMENT **msg_pack);                                              
+
+static bool text_file_read( struct cmp_ctx_s *ctx,
+                      int *msg_pack_number, 
+                       MSG_PACK_ELEMENT **msg_pack); 
                        
 static bool file_delete( struct cmp_ctx_s *ctx,
                          int *msg_pack_number, 
@@ -88,6 +96,8 @@ void msg_command_data_initialize(void)
 
 static void add_commands(void)
 {
+   msg_command_add_command("TEXT_FILE_READ",text_file_read);
+   msg_command_add_command("TEXT_FILE_WRITE",text_file_write) ;
    msg_command_add_command("FILE_WRITE",file_write) ;
    msg_command_add_command("FILE_READ",file_read)   ; 
    msg_command_add_command("FILE_DELETE",file_delete) ; 
@@ -124,7 +134,95 @@ static bool get_wifi_mac_address(struct cmp_ctx_s *ctx,
    return true;
 }
 
+static bool text_file_write(struct cmp_ctx_s *ctx, 
+                       int *msg_pack_number, 
+                        MSG_PACK_ELEMENT **msg_pack)
+                        
+{
+    
+    
+    uint32_t size;
+    char *temp_pointer;
+    uint32_t temp_length;
+    FILE *spiffs_file;
+    char *file_name;
+    MSG_PACK_ELEMENT *temp;
+    int nwrite;
+    struct cmp_ctx_s new_ctx;
+    char *file_buffer;
+    
+    *msg_pack_number = 0;
+ 
+    printf("file write \n");
+    
+    size = FILE_SIZE;
+   
+    
+    file_name = malloc(size);
+    memset(file_name,0,sizeof(size));
 
+
+    
+    
+    if( msgpack_rx_handler_find_string(ctx,"FILE_NAME", file_name, &size) != true )
+    {
+       printf("file name not found %s \n",file_name);
+       free(file_name);
+       return false;
+        
+    }
+    
+    //printf("file name found %s %d \n\n",file_name,size);
+    if( msgpack_rx_handler_find_object(ctx,"FILE_DATA", &temp_pointer, &temp_length) != true)
+    {
+       printf("file data not found \n");
+       free(file_name);
+       return false;
+        
+    }
+    
+    spiffs_file = fopen(file_name,"w");
+    
+    nwrite = 0;
+    
+    if(spiffs_file != NULL)
+    {
+      msgpack_rx_handler_init(&new_ctx, temp_pointer,temp_length);
+      file_buffer = malloc(temp_length);
+      cmp_read_str(&new_ctx,file_buffer,&temp_length);
+      nwrite = fwrite(file_buffer,1,temp_length,spiffs_file);
+
+      temp = malloc(sizeof(MSG_PACK_ELEMENT)*6);
+      *msg_pack = temp;
+      *msg_pack_number = 6;
+      msg_dict_pack_string(&temp[0],"TOPIC", "COMMAND_RESPONSE");
+      msg_dict_pack_string(&temp[1],"COMMAND", "FILE_WRITE");
+      msg_dict_pack_map(&temp[2],"DATA",3);
+      msg_dict_pack_string_dynamic(&temp[3],"FILE_NAME", file_name);
+      msg_dict_pack_boolean(&temp[4],"STATUS",true);
+      msg_dict_pack_unsigned_integer(&temp[5],"BYTES_WRITE", nwrite);
+      fclose(spiffs_file);
+     
+    }
+    else
+    {
+    printf("file not opened %s \n",file_name);
+    temp = malloc(sizeof(MSG_PACK_ELEMENT)*6);
+    *msg_pack = temp;
+    *msg_pack_number = 6;
+    msg_dict_pack_string(&temp[0],"TOPIC", "COMMAND_RESPONSE");
+    msg_dict_pack_string(&temp[1],"COMMAND", "FILE_WRITE");
+    msg_dict_pack_map(&temp[2],"DATA",3);
+    msg_dict_pack_string_dynamic(&temp[3],"FILE_NAME", file_name);
+    msg_dict_pack_boolean(&temp[4],"STATUS",false);
+    msg_dict_pack_unsigned_integer(&temp[5],"BYTES_WRITE", nwrite);
+    }   
+    
+    return true;      
+
+}                        
+                        
+                        
 static bool file_write(  struct cmp_ctx_s *ctx, 
                          int *msg_pack_number, 
                           MSG_PACK_ELEMENT **msg_pack)
@@ -209,7 +307,88 @@ static bool file_write(  struct cmp_ctx_s *ctx,
 
 }    
    
+static bool text_file_read( struct cmp_ctx_s *ctx,
+                      int *msg_pack_number, 
+                       MSG_PACK_ELEMENT **msg_pack)
+                       {
+    
+    
+    uint32_t size;
+    char *data_ptr;
+    uint32_t data_length;
+    FILE *spiffs_file;
+    char *file_name;
+    MSG_PACK_ELEMENT *temp;
+    
 
+    
+    *msg_pack_number = 0;
+ 
+
+    
+    
+    
+    
+    file_name = malloc(FILE_SIZE);
+    memset(file_name,0,sizeof(size));
+    size = FILE_SIZE;
+    data_ptr = malloc(DATA_SIZE);
+    memset(data_ptr,0,DATA_SIZE);
+    data_length = DATA_SIZE;
+    
+     
+    
+    
+    //printf("file read \n");
+    if( msgpack_rx_handler_find_string(ctx,"FILE_NAME", file_name, &size) != true )
+    {
+       free(file_name);
+       printf("file name not found \n");
+       return false;
+        
+    }
+    
+
+    spiffs_file = fopen(file_name,"rb");
+    
+    if(spiffs_file != NULL)
+    {
+      fread(data_ptr,1,data_length,spiffs_file);
+      
+      temp = malloc(sizeof(MSG_PACK_ELEMENT)*6);
+      *msg_pack = temp;
+      *msg_pack_number = 6;
+      msg_dict_pack_string(&temp[0],"TOPIC", "COMMAND_RESPONSE");
+      msg_dict_pack_string(&temp[1],"COMMAND", "FILE_READ");
+      msg_dict_pack_map(&temp[2],"DATA",3);
+      msg_dict_pack_string_dynamic(&temp[3],"FILE_NAME", file_name);
+      msg_dict_pack_boolean(&temp[4],"STATUS",true);
+      msg_dict_pack_string_dynamic(&temp[5],"FILE_DATA", data_ptr);
+
+      fclose(spiffs_file);
+     
+    }
+    else
+    {
+
+      temp = malloc(sizeof(MSG_PACK_ELEMENT)*6);
+      *msg_pack = temp;
+      *msg_pack_number = 6;
+      msg_dict_pack_string(&temp[0],"TOPIC", "COMMAND_RESPONSE");
+      msg_dict_pack_string(&temp[1],"COMMAND", "FILE_READ");
+      msg_dict_pack_map(&temp[2],"DATA",3);
+      msg_dict_pack_string_dynamic(&temp[3],"FILE_NAME", file_name);
+      msg_dict_pack_boolean(&temp[4],"STATUS",false);
+      msg_dict_pack_null(&temp[5],"FILE_DATA");
+
+      
+     
+    }
+        
+    return true;
+}    
+
+                 
 static bool file_read(   struct cmp_ctx_s *ctx,
                          int *msg_pack_number, 
                           MSG_PACK_ELEMENT **msg_pack)

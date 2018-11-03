@@ -143,7 +143,7 @@ bool msgpack_rx_handler_find_string(cmp_ctx_t *ctx,char *field_name, char *strin
            return_value = cmp_read_str(ctx, string, size);
            if(return_value != true)
            {
-               //printf("string size problem %d \n",*size);
+               ;//printf("string size problem %d \n",*size);
            }
            
            return return_value;

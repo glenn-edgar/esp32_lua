@@ -378,22 +378,22 @@ static int os_exit (lua_State *L) {
     status = (int)luaL_optinteger(L, 1, EXIT_SUCCESS);
   if (lua_toboolean(L, 2))
     lua_close(L);
-  if (L) exit(status);  /* 'if' to avoid warnings for unreachable 'return' */
+  //if (L) exit(status);  /* 'if' to avoid warnings for unreachable 'return' */
   return 0;
 }
 
 
 static const luaL_Reg syslib[] = {
-  {"clock",     os_clock},
-  {"date",      os_date},
-  {"difftime",  os_difftime},
-  {"execute",   os_execute},
+  //{"clock",     os_clock},
+  //{"date",      os_date},
+  //{"difftime",  os_difftime},
+  //{"execute",   os_execute},
   {"exit",      os_exit},
-  {"getenv",    os_getenv},
+  //{"getenv",    os_getenv},
   {"remove",    os_remove},
   {"rename",    os_rename},
-  {"setlocale", os_setlocale},
-  {"time",      os_time},
+  //{"setlocale", os_setlocale},
+  //{"time",      os_time},
   {"tmpname",   os_tmpname},
   {NULL, NULL}
 };

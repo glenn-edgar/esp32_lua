@@ -79,7 +79,7 @@ void app_analog_setup_dacs(void ) // these are only subscription
     }
     else
     {
-        printf("*********************dac file not found \n");
+        ;//printf("*********************dac file not found \n");
         
     }    
     

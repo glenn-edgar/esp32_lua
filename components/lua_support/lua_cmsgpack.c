@@ -5,6 +5,7 @@
 #include <assert.h>
 
 #include "lua.h"
+#include "lualib.h"
 #include "lauxlib.h"
 
 #define LUACMSGPACK_NAME        "cmsgpack"
@@ -66,7 +67,7 @@
 /* Reverse memory bytes if arch is little endian. Given the conceptual
  * simplicity of the Lua build system we prefer check for endianess at runtime.
  * The performance difference should be acceptable. */
-void memrevifle(void *ptr, size_t len) {
+static void memrevifle(void *ptr, size_t len) {
     unsigned char   *p = (unsigned char *)ptr,
                     *e = (unsigned char *)p+len-1,
                     aux;
@@ -472,14 +473,14 @@ void mp_encode_lua_table(lua_State *L, mp_buf *buf, int level) {
         mp_encode_lua_table_as_map(L,buf,level);
 }
 
-void mp_encode_lua_null(lua_State *L, mp_buf *buf) {
+static void mp_encode_lua_null(lua_State *L, mp_buf *buf) {
     unsigned char b[1];
 
     b[0] = 0xc0;
     mp_buf_append(L,buf,b,1);
 }
 
-void mp_encode_lua_type(lua_State *L, mp_buf *buf, int level) {
+static void mp_encode_lua_type(lua_State *L, mp_buf *buf, int level) {
     int t = lua_type(L,-1);
 
     /* Limit the encoding of nested tables to a specified maximum depth, so that
@@ -509,7 +510,7 @@ void mp_encode_lua_type(lua_State *L, mp_buf *buf, int level) {
  * Packs all arguments as a stream for multiple upacking later.
  * Returns error if no arguments provided.
  */
-int mp_pack(lua_State *L) {
+static int mp_pack(lua_State *L) {
     int nargs = lua_gettop(L);
     int i;
     mp_buf *buf;
@@ -546,9 +547,9 @@ int mp_pack(lua_State *L) {
 
 /* ------------------------------- Decoding --------------------------------- */
 
-void mp_decode_to_lua_type(lua_State *L, mp_cur *c);
+static void mp_decode_to_lua_type(lua_State *L, mp_cur *c);
 
-void mp_decode_to_lua_array(lua_State *L, mp_cur *c, size_t len) {
+static void mp_decode_to_lua_array(lua_State *L, mp_cur *c, size_t len) {
     assert(len <= UINT_MAX);
     int index = 1;
 
@@ -562,7 +563,7 @@ void mp_decode_to_lua_array(lua_State *L, mp_cur *c, size_t len) {
     }
 }
 
-void mp_decode_to_lua_hash(lua_State *L, mp_cur *c, size_t len) {
+static void mp_decode_to_lua_hash(lua_State *L, mp_cur *c, size_t len) {
     assert(len <= UINT_MAX);
     lua_newtable(L);
     while(len--) {
@@ -576,7 +577,7 @@ void mp_decode_to_lua_hash(lua_State *L, mp_cur *c, size_t len) {
 
 /* Decode a Message Pack raw object pointed by the string cursor 'c' to
  * a Lua type, that is left as the only result on the stack. */
-void mp_decode_to_lua_type(lua_State *L, mp_cur *c) {
+static void mp_decode_to_lua_type(lua_State *L, mp_cur *c) {
     mp_cur_need(c,1);
 
     /* If we return more than 18 elements, we must resize the stack to
@@ -790,7 +791,7 @@ void mp_decode_to_lua_type(lua_State *L, mp_cur *c) {
     }
 }
 
-int mp_unpack_full(lua_State *L, int limit, int offset) {
+static int mp_unpack_full(lua_State *L, int limit, int offset) {
     size_t len;
     const char *s;
     mp_cur c;
@@ -846,18 +847,18 @@ int mp_unpack_full(lua_State *L, int limit, int offset) {
     return cnt;
 }
 
-int mp_unpack(lua_State *L) {
+static int mp_unpack(lua_State *L) {
     return mp_unpack_full(L, 0, 0);
 }
 
-int mp_unpack_one(lua_State *L) {
+static int mp_unpack_one(lua_State *L) {
     int offset = luaL_optinteger(L, 2, 0);
     /* Variable pop because offset may not exist */
     lua_pop(L, lua_gettop(L)-1);
     return mp_unpack_full(L, 1, offset);
 }
 
-int mp_unpack_limit(lua_State *L) {
+static int mp_unpack_limit(lua_State *L) {
     int limit = luaL_checkinteger(L, 2);
     int offset = luaL_optinteger(L, 3, 0);
     /* Variable pop because offset may not exist */
@@ -866,7 +867,7 @@ int mp_unpack_limit(lua_State *L) {
     return mp_unpack_full(L, limit, offset);
 }
 
-int mp_safe(lua_State *L) {
+static int mp_safe(lua_State *L) {
     int argc, err, total_results;
 
     argc = lua_gettop(L);
@@ -889,7 +890,7 @@ int mp_safe(lua_State *L) {
 }
 
 /* -------------------------------------------------------------------------- */
-const struct luaL_Reg cmds[] = {
+static const struct luaL_Reg cmds[] = {
     {"pack", mp_pack},
     {"unpack", mp_unpack},
     {"unpack_one", mp_unpack_one},
@@ -897,7 +898,7 @@ const struct luaL_Reg cmds[] = {
     {0}
 };
 
-int luaopen_create(lua_State *L) {
+static int luaopen_create(lua_State *L) {
     int i;
     /* Manually construct our module table instead of
      * relying on _register or _newlib */
@@ -919,7 +920,7 @@ int luaopen_create(lua_State *L) {
     lua_setfield(L, -2, "_DESCRIPTION");
     return 1;
 }
-
+#if 0
 LUALIB_API int luaopen_cmsgpack(lua_State *L) {
     luaopen_create(L);
 
@@ -931,7 +932,25 @@ LUALIB_API int luaopen_cmsgpack(lua_State *L) {
 
     return 1;
 }
+#endif
 
+LUAMOD_API int  luaopen_msgpack (lua_State *L) {
+  luaL_newlib(L, cmds);
+  return 1;
+}
+
+LUALIB_API int luaopen_cmsgpack(lua_State *L) 
+{
+    luaL_requiref(L, "cmsgpack", luaopen_msgpack, 1);
+    lua_pop(L, 1);  /* remove lib */ 
+   
+  return 1;   
+    
+    
+    
+}
+
+#if 0
 LUALIB_API int luaopen_cmsgpack_safe(lua_State *L) {
     int i;
 
@@ -944,14 +963,15 @@ LUALIB_API int luaopen_cmsgpack_safe(lua_State *L) {
         lua_setfield(L, -2, cmds[i].name);
     }
 
-#if LUA_VERSION_NUM < 502
+if LUA_VERSION_NUM < 502
     /* Register name globally for 5.1 */
     lua_pushvalue(L, -1);
     lua_setglobal(L, LUACMSGPACK_SAFE_NAME);
-#endif
+endif
 
     return 1;
 }
+#endif
 
 /******************************************************************************
 * Copyright (C) 2012 Salvatore Sanfilippo.  All rights reserved.
