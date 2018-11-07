@@ -16,6 +16,8 @@
 #include "freertos/queue.h"
 #include "mqtt_ctrl.h"
 #include "lua_cmsgpack.h"
+#include "lua_freertos.h"
+#include "lua_watchdog.h"
 #include "lua_main.h"
 
 #define LUA_TASK_NUMBER 10
@@ -100,7 +102,10 @@ static void lua_task_shell(void *input)
   **
   ** open other libraries
   **
-  */ 
+  */
+  free_rtos_create_queue();  
+  printf("openning freertos extension %d \n",luaopen_freertos(L));
+  printf("openning lua watchdog externsion %d \n",luaopen_watchdog(L));
   
 
   dofile(L, file_name);   
